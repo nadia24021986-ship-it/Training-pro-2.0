@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
 
   const [loadError, setLoadError] = useState('')
+  const [deletingId, setDeletingId] = useState(null)
 
   const loadSessions = async () => {
     setLoading(true)
@@ -51,6 +52,17 @@ export default function AdminDashboard() {
     if (data) {
       navigate(`/admin/${data.id}`)
     }
+  }
+
+  const handleDelete = async (e, sessionId, title) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const ok = window.confirm(`Hapus sesi "${title}"? Semua materi, soal, dan data peserta di sesi ini akan ikut terhapus dan tidak bisa dikembalikan.`)
+    if (!ok) return
+    setDeletingId(sessionId)
+    await supabase.from('training_sessions').delete().eq('id', sessionId)
+    setDeletingId(null)
+    loadSessions()
   }
 
   return (
@@ -130,6 +142,13 @@ export default function AdminDashboard() {
                     {s.training_participants?.[0]?.count ?? 0} peserta
                   </span>
                 </div>
+                <button
+                  className="btn btn-danger btn-sm mt-16"
+                  onClick={(e) => handleDelete(e, s.id, s.title)}
+                  disabled={deletingId === s.id}
+                >
+                  {deletingId === s.id ? 'Menghapus...' : 'Hapus Sesi'}
+                </button>
               </div>
             </Link>
           ))}
