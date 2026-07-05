@@ -11,6 +11,8 @@ export default function SoalViewer() {
   const [participant, setParticipant] = useState(null)
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [draftAnswer, setDraftAnswer] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState(null)
 
@@ -36,17 +38,12 @@ export default function SoalViewer() {
     load()
   }, [code])
 
-  const setAnswer = (questionId, value) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: value }))
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const finalizeAndSubmit = async (allAnswers) => {
     setSubmitting(true)
 
     let correctCount = 0
     const rows = questions.map((q) => {
-      const given = answers[q.id] ?? ''
+      const given = allAnswers[q.id] ?? ''
       let isCorrect = false
       if (q.type === 'multiple_choice') {
         isCorrect = given === q.correct_answer
@@ -75,6 +72,21 @@ export default function SoalViewer() {
 
     setResult({ score: correctCount, total: questions.length })
     setSubmitting(false)
+  }
+
+  const handleNext = () => {
+    const currentQuestion = questions[currentIndex]
+    if (!draftAnswer.trim() && draftAnswer !== '0') return
+
+    const updatedAnswers = { ...answers, [currentQuestion.id]: draftAnswer }
+    setAnswers(updatedAnswers)
+    setDraftAnswer('')
+
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex((i) => i + 1)
+    } else {
+      finalizeAndSubmit(updatedAnswers)
+    }
   }
 
   if (notFound) {
@@ -131,50 +143,57 @@ export default function SoalViewer() {
     )
   }
 
+  const q = questions[currentIndex]
+  const isLast = currentIndex === questions.length - 1
+
   return (
     <div className="container">
       <div className="eyebrow">{session.title}</div>
-      <h3 className="mt-8">Kuis ({questions.length} soal)</h3>
+      <h3 className="mt-8">
+        Soal {currentIndex + 1} dari {questions.length}
+      </h3>
 
-      <form onSubmit={handleSubmit} className="mt-16">
-        {questions.map((q, idx) => (
-          <div key={q.id} className="question-block">
-            <p style={{ fontWeight: 600 }}>
-              {idx + 1}. {q.question_text}
-            </p>
-            {q.type === 'multiple_choice' ? (
-              <div className="mt-16">
-                {q.options?.map((opt, i) => (
-                  <label
-                    key={i}
-                    className={`option-row ${answers[q.id] === opt ? 'selected' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name={q.id}
-                      checked={answers[q.id] === opt}
-                      onChange={() => setAnswer(q.id, opt)}
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <input
-                className="input mt-16"
-                value={answers[q.id] || ''}
-                onChange={(e) => setAnswer(q.id, e.target.value)}
-                placeholder="Ketik jawabanmu"
-              />
-            )}
-          </div>
+      <div className="page-dots">
+        {questions.map((_, i) => (
+          <span key={i} className={i === currentIndex ? 'active' : ''} />
         ))}
+      </div>
 
-        <button className="btn btn-accent btn-block" type="submit" disabled={submitting}>
-          {submitting ? 'Mengirim...' : 'Kirim Jawaban'}
-        </button>
-      </form>
+      <div className="question-block mt-16">
+        <p style={{ fontWeight: 600 }}>{q.question_text}</p>
+
+        {q.type === 'multiple_choice' ? (
+          <div className="mt-16">
+            {q.options?.map((opt, i) => (
+              <label key={i} className={`option-row ${draftAnswer === opt ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name={q.id}
+                  checked={draftAnswer === opt}
+                  onChange={() => setDraftAnswer(opt)}
+                />
+                {opt}
+              </label>
+            ))}
+          </div>
+        ) : (
+          <input
+            className="input mt-16"
+            value={draftAnswer}
+            onChange={(e) => setDraftAnswer(e.target.value)}
+            placeholder="Ketik jawabanmu"
+            autoFocus
+          />
+        )}
+      </div>
+
+      <button
+        className="btn btn-accent btn-block"
+        onClick={handleNext}
+        disabled={submitting || !draftAnswer.trim()}
+      >
+        {submitting ? 'Mengirim...' : isLast ? 'Kirim Jawaban' : 'Berikutnya'}
+      </button>
     </div>
   )
 }
-
