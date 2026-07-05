@@ -67,6 +67,7 @@ export default function SoalViewer() {
         score: correctCount,
         total_questions: questions.length,
         soal_completed: true,
+        completed_at: new Date().toISOString(),
       })
       .eq('id', participant.id)
 
@@ -76,7 +77,7 @@ export default function SoalViewer() {
 
   const handleNext = () => {
     const currentQuestion = questions[currentIndex]
-    if (!draftAnswer.trim() && draftAnswer !== '0') return
+    if (!draftAnswer.trim()) return
 
     const updatedAnswers = { ...answers, [currentQuestion.id]: draftAnswer }
     setAnswers(updatedAnswers)
