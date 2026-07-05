@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import html2canvas from 'html2canvas'
 import { supabase } from '../lib/supabase.js'
 import { formatDateTime } from '../lib/utils.js'
 
-export default function ParticipantRoster({ sessionId }) {
+export default function ParticipantRoster({ sessionId, sessionTitle }) {
   const [participants, setParticipants] = useState([])
   const [loading, setLoading] = useState(true)
+  const [exporting, setExporting] = useState(false)
+  const rosterRef = useRef(null)
 
   const load = async () => {
     const { data } = await supabase
@@ -41,13 +44,40 @@ export default function ParticipantRoster({ sessionId }) {
     return Math.round((steps / 3) * 100)
   }
 
+  const handleExport = async () => {
+    if (!rosterRef.current) return
+    setExporting(true)
+    try {
+      const canvas = await html2canvas(rosterRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+      })
+      const link = document.createElement('a')
+      const safeTitle = (sessionTitle || 'hasil-training').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
+      link.download = `${safeTitle}-hasil-peserta.jpg`
+      link.href = canvas.toDataURL('image/jpeg', 0.95)
+      link.click()
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="card">
       <div className="header-row" style={{ marginBottom: 0 }}>
         <h3>Peserta Live</h3>
-        <span className="badge badge-success">
-          <span className="pulse-dot" /> {participants.length} online / login
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="badge badge-success">
+            <span className="pulse-dot" /> {participants.length} online / login
+          </span>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={handleExport}
+            disabled={exporting || participants.length === 0}
+          >
+            {exporting ? 'Mengekspor...' : 'Ekspor JPG'}
+          </button>
+        </div>
       </div>
 
       {loading && <p className="text-muted mt-16">Memuat...</p>}
@@ -58,7 +88,17 @@ export default function ParticipantRoster({ sessionId }) {
         </div>
       )}
 
-      <div className="mt-16">
+      <div className="mt-16" ref={rosterRef} style={{ background: '#fff', padding: participants.length ? 4 : 0 }}>
+        {participants.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <strong style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem' }}>
+              {sessionTitle || 'Hasil Training'}
+            </strong>
+            <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+              Diekspor {formatDateTime(new Date().toISOString())}
+            </div>
+          </div>
+        )}
         {participants.map((p) => (
           <div key={p.id} className="roster-row">
             <div className="roster-rail">
@@ -93,4 +133,3 @@ export default function ParticipantRoster({ sessionId }) {
     </div>
   )
 }
-
