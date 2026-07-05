@@ -87,9 +87,8 @@ export default function SessionDetail() {
 
         {tab === 'materi' && <MateriManager sessionId={session.id} />}
         {tab === 'soal' && <SoalManager sessionId={session.id} />}
-        {tab === 'peserta' && <ParticipantRoster sessionId={session.id} />}
+        {tab === 'peserta' && <ParticipantRoster sessionId={session.id} sessionTitle={session.title} />}
       </div>
     </div>
   )
 }
-
