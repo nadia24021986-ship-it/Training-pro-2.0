@@ -37,18 +37,12 @@ export default function ParticipantRoster({ sessionId, sessionTitle }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
-  const progressPercent = (p) => {
-    let steps = 1
-    if (p.materi_completed) steps++
-    if (p.soal_completed) steps++
-    return Math.round((steps / 3) * 100)
-  }
+  const resultLabel = (p) => (p.soal_completed ? `${p.score}/${p.total_questions} benar` : 'Belum selesai')
 
   const handleExport = async () => {
     if (!exportRef.current) return
     setExporting(true)
     try {
-      // small delay so the hidden template is fully laid out before capture
       await new Promise((resolve) => setTimeout(resolve, 50))
       const canvas = await html2canvas(exportRef.current, {
         backgroundColor: '#ffffff',
@@ -73,7 +67,7 @@ export default function ParticipantRoster({ sessionId, sessionTitle }) {
         <h3>Peserta Live</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span className="badge badge-success">
-            <span className="pulse-dot" /> {participants.length} online / login
+            <span className="pulse-dot" /> {participants.length} login
           </span>
           <button
             className="btn btn-outline btn-sm"
@@ -93,49 +87,66 @@ export default function ParticipantRoster({ sessionId, sessionTitle }) {
         </div>
       )}
 
-      <div className="mt-16">
-        {participants.map((p) => (
-          <div key={p.id} className="roster-row">
-            <div className="roster-rail">
-              <div className="roster-rail-fill" style={{ height: `${progressPercent(p)}%` }} />
-            </div>
-            <div className="roster-info">
-              <div className="roster-name">{p.name}</div>
-              <div className="roster-meta">
-                {p.position} · {p.location}
-              </div>
-              <div className="roster-meta">Login {formatDateTime(p.logged_in_at)}</div>
-              <div className="mt-8">
-                <span className={`badge ${p.materi_completed ? 'badge-success' : 'badge-pending'}`}>
-                  {p.materi_completed ? 'Materi selesai' : 'Materi belum'}
-                </span>{' '}
-                <span className={`badge ${p.soal_completed ? 'badge-success' : 'badge-pending'}`}>
-                  {p.soal_completed ? 'Soal selesai' : 'Soal belum'}
-                </span>
-              </div>
-            </div>
-            {p.soal_completed && (
-              <div className="roster-stats">
-                <div className="roster-score">
-                  {p.score}/{p.total_questions}
-                </div>
-                <div>benar</div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {!loading && participants.length > 0 && (
+        <div className="mt-16" style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 640 }}>
+            <thead>
+              <tr>
+                {['Nama', 'Jabatan', 'Wilayah Kerja', 'Waktu Mulai', 'Waktu Selesai', 'Hasil'].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: 'left',
+                      padding: '10px 8px',
+                      borderBottom: '2px solid var(--border)',
+                      color: 'var(--ink-soft)',
+                      fontSize: '0.78rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {participants.map((p) => (
+                <tr key={p.id}>
+                  <td style={{ padding: '10px 8px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>
+                    {p.name}
+                  </td>
+                  <td style={{ padding: '10px 8px', borderBottom: '1px solid var(--border)' }}>{p.position}</td>
+                  <td style={{ padding: '10px 8px', borderBottom: '1px solid var(--border)' }}>{p.location}</td>
+                  <td style={{ padding: '10px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    {formatDateTime(p.logged_in_at)}
+                  </td>
+                  <td style={{ padding: '10px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    {p.completed_at ? formatDateTime(p.completed_at) : '-'}
+                  </td>
+                  <td style={{ padding: '10px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                    <span className={`badge ${p.soal_completed ? 'badge-success' : 'badge-pending'}`}>
+                      {resultLabel(p)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Hidden plain-styled template used only for JPG export.
-          Uses hardcoded colors (no CSS variables) and no animations,
-          since html2canvas can render those inconsistently. */}
+          Uses hardcoded colors (no CSS variables) since html2canvas
+          can render CSS variables and animations inconsistently. */}
       <div
         ref={exportRef}
         style={{
           position: 'fixed',
           left: '-9999px',
           top: 0,
-          width: 640,
+          width: 820,
           background: '#ffffff',
           padding: 28,
           fontFamily: 'Inter, sans-serif',
@@ -145,69 +156,61 @@ export default function ParticipantRoster({ sessionId, sessionTitle }) {
         <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 22 }}>
           {sessionTitle || 'Hasil Training'}
         </div>
-        <div style={{ color: '#4a5578', fontSize: 13, marginTop: 4, marginBottom: 20 }}>
+        <div style={{ color: '#4a5578', fontSize: 13, marginTop: 4, marginBottom: 18 }}>
           Diekspor {formatDateTime(new Date().toISOString())}
         </div>
 
-        {participants.map((p, i) => (
-          <div
-            key={p.id}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              padding: '14px 0',
-              borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{p.name}</div>
-              <div style={{ color: '#4a5578', fontSize: 12.5, marginTop: 2 }}>
-                {p.position} · {p.location}
-              </div>
-              <div style={{ color: '#4a5578', fontSize: 12.5, marginTop: 2 }}>
-                Login {formatDateTime(p.logged_in_at)}
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <span
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr>
+              {['Nama', 'Jabatan', 'Wilayah Kerja', 'Waktu Mulai', 'Waktu Selesai', 'Hasil'].map((h) => (
+                <th
+                  key={h}
                   style={{
-                    display: 'inline-block',
+                    textAlign: 'left',
+                    padding: '8px 6px',
+                    borderBottom: '2px solid #e2e5ec',
+                    color: '#4a5578',
                     fontSize: 11,
-                    fontWeight: 700,
-                    padding: '3px 10px',
-                    borderRadius: 999,
-                    marginRight: 6,
-                    background: p.materi_completed ? '#e2f4ea' : '#fbe8c8',
-                    color: p.materi_completed ? '#2f8a5c' : '#8a5c14',
+                    textTransform: 'uppercase',
                   }}
                 >
-                  {p.materi_completed ? 'Materi selesai' : 'Materi belum'}
-                </span>
-                <span
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {participants.map((p, i) => (
+              <tr key={p.id}>
+                <td
                   style={{
-                    display: 'inline-block',
-                    fontSize: 11,
+                    padding: '8px 6px',
+                    borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none',
                     fontWeight: 700,
-                    padding: '3px 10px',
-                    borderRadius: 999,
-                    background: p.soal_completed ? '#e2f4ea' : '#fbe8c8',
-                    color: p.soal_completed ? '#2f8a5c' : '#8a5c14',
                   }}
                 >
-                  {p.soal_completed ? 'Soal selesai' : 'Soal belum'}
-                </span>
-              </div>
-            </div>
-            {p.soal_completed && (
-              <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                <div style={{ fontFamily: "'Space Grotesk', sans-serif", fontWeight: 700, fontSize: 20 }}>
-                  {p.score}/{p.total_questions}
-                </div>
-                <div style={{ color: '#4a5578', fontSize: 12 }}>benar</div>
-              </div>
-            )}
-          </div>
-        ))}
+                  {p.name}
+                </td>
+                <td style={{ padding: '8px 6px', borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none' }}>
+                  {p.position}
+                </td>
+                <td style={{ padding: '8px 6px', borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none' }}>
+                  {p.location}
+                </td>
+                <td style={{ padding: '8px 6px', borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none', whiteSpace: 'nowrap' }}>
+                  {formatDateTime(p.logged_in_at)}
+                </td>
+                <td style={{ padding: '8px 6px', borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none', whiteSpace: 'nowrap' }}>
+                  {p.completed_at ? formatDateTime(p.completed_at) : '-'}
+                </td>
+                <td style={{ padding: '8px 6px', borderBottom: i < participants.length - 1 ? '1px solid #e2e5ec' : 'none', whiteSpace: 'nowrap' }}>
+                  {resultLabel(p)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
