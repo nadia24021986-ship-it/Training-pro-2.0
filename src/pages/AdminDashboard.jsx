@@ -9,14 +9,18 @@ export default function AdminDashboard() {
   const [showForm, setShowForm] = useState(false)
   const [title, setTitle] = useState('')
   const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
   const navigate = useNavigate()
+
+  const [loadError, setLoadError] = useState('')
 
   const loadSessions = async () => {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('training_sessions')
       .select('*, training_participants(count)')
       .order('created_at', { ascending: false })
+    if (error) setLoadError(error.message)
     setSessions(data || [])
     setLoading(false)
   }
@@ -29,6 +33,7 @@ export default function AdminDashboard() {
     e.preventDefault()
     if (!title.trim()) return
     setCreating(true)
+    setCreateError('')
     const { data, error } = await supabase
       .from('training_sessions')
       .insert({
@@ -39,7 +44,11 @@ export default function AdminDashboard() {
       .select()
       .single()
     setCreating(false)
-    if (!error && data) {
+    if (error) {
+      setCreateError(error.message || 'Gagal membuat sesi.')
+      return
+    }
+    if (data) {
       navigate(`/admin/${data.id}`)
     }
   }
@@ -80,11 +89,22 @@ export default function AdminDashboard() {
                   required
                 />
               </div>
+              {createError && (
+                <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }} className="mt-8">
+                  {createError}
+                </p>
+              )}
               <button className="btn btn-accent" type="submit" disabled={creating}>
                 {creating ? 'Membuat...' : 'Buat Sesi'}
               </button>
             </form>
           </div>
+        )}
+
+        {loadError && (
+          <p style={{ color: 'var(--danger)', fontSize: '0.85rem' }} className="mt-16">
+            Gagal memuat: {loadError}
+          </p>
         )}
 
         {loading && <p className="text-muted mt-16">Memuat sesi...</p>}
